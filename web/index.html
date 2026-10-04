@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Soporte con Kev</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/web/style.css">
+</head>
+<body>
+  <section id="controls" class="controls">
+    <label>Mensajes <select id="in-count"><option value="24">24</option><option value="40">40</option><option value="60">60 (todos)</option><option value="12">12</option></select></label>
+    <label>Ritmo <select id="in-delay"><option value="1600">normal</option><option value="2600">lento</option><option value="900">rápido</option></select></label>
+    <label><input id="in-shuffle" type="checkbox"> Mezclar</label>
+    <button id="btn-start">▶ Abrir la bandeja</button>
+    <span class="sep"></span>
+    <label>Repetición <select id="in-replay"><option value="">–</option></select></label>
+    <label>Velocidad <select id="in-speed"><option value="1">1×</option><option value="2">2×</option></select></label>
+    <button id="btn-replay">⟲ Reproducir</button>
+    <span id="status" class="status"></span>
+  </section>
+
+  <main id="app">
+    <!-- IZQUIERDA: el mensaje y cómo decide Kev -->
+    <aside class="brain">
+      <header class="b-head">
+        <div>
+          <h1>KEV</h1>
+          <p class="model">Kev-0.8B · open source · corre en mi notebook</p>
+        </div>
+        <div class="timer" id="timer"><span id="ms">–</span><small>ms</small><span class="lbl">esta decisión</span></div>
+      </header>
+
+      <div class="incoming" id="incoming">
+        <div class="from" id="in-from">Bandeja vacía</div>
+        <div class="bubble-msg" id="in-text">Tocá “Abrir la bandeja” para que empiecen a entrar mensajes.</div>
+      </div>
+
+      <p class="how">Una sola pasada, sin escribir texto: responde las 4 preguntas a la vez con una probabilidad cada una.</p>
+
+      <section class="q">
+        <h2><span class="n">1</span> ¿A qué área va?</h2>
+        <div class="bars" id="q-area"></div>
+      </section>
+      <section class="q">
+        <h2><span class="n">2</span> ¿Qué tan urgente es?</h2>
+        <div class="bars" id="q-urg"></div>
+      </section>
+      <section class="q two">
+        <div>
+          <h2><span class="n">3</span> ¿Está enojado?</h2>
+          <div class="meter-row"><div class="meter"><div class="fill" id="q-angry"></div></div><span class="pct" id="q-angry-p">–</span></div>
+        </div>
+        <div>
+          <h2><span class="n">4</span> ¿Lo toma una persona?</h2>
+          <div class="meter-row"><div class="meter"><div class="fill" id="q-esc"></div></div><span class="pct" id="q-esc-p">–</span></div>
+        </div>
+      </section>
+
+      <div class="verdict" id="verdict"><span class="arrow">→</span><span id="v-text">esperando…</span></div>
+    </aside>
+
+    <!-- DERECHA: el tablero -->
+    <section class="board-side">
+      <header class="top">
+        <div class="title">Soporte del restaurante <span class="muted">· atendido por IA</span></div>
+        <div class="hud">
+          <div><span class="lbl">mensajes</span><span class="num" id="st-n">0</span></div>
+          <div><span class="lbl">área correcta</span><span class="num" id="st-area">–</span></div>
+          <div><span class="lbl">promedio</span><span class="num" id="st-avg">–</span></div>
+          <div><span class="lbl">costo</span><span class="num">$0</span></div>
+        </div>
+      </header>
+      <div class="kanban" id="kanban"></div>
+      <footer class="foot">
+        <span><i class="dot alta"></i> urgente</span><span><i class="dot media"></i> media</span><span><i class="dot baja"></i> baja</span>
+        <span>😠 enojado</span>
+        <span class="muted">Mensajes inventados para la demo · ningún dato real</span>
+        <span class="score" id="st-more"></span>
+      </footer>
+    </section>
+  </main>
+  <script src="/web/app.js"></script>
+</body>
+</html>
