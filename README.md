@@ -99,6 +99,29 @@ La app trae un webhook para la **API oficial de WhatsApp Business (Cloud API de 
 
 Se configura con un `.env` (ver `.env.example`). **La guía paso a paso está en [docs/WHATSAPP.md](docs/WHATSAPP.md)**: crear la app en Meta, conseguir las claves, exponer tu compu con un túnel, configurar el webhook y probarlo, incluso sin Meta con `scripts/simular_whatsapp.py`.
 
+### Con tus propias columnas
+
+Las áreas no están escritas en el código: salen de [`config/areas.json`](config/areas.json). Ahí cambiás el título de la bandeja, la pregunta que le hacés a Kev y cada columna (nombre, ícono y la descripción que lee Kev para decidir). Agregá, sacá o renombrá áreas y reiniciá la app: la bandeja, Kev y las respuestas automáticas de WhatsApp usan las nuevas. La columna **Persona** (escalar a un humano) está siempre.
+
+```jsonc
+{
+  "titulo": "Soporte de la tienda",
+  "pregunta": "This message was sent by a customer to the support team of an online store. Which team should handle it?",
+  "areas": [
+    { "id": "envios", "nombre": "Envíos", "icono": "📦", "descripcion": "Shipping: where is my order, tracking, courier problems..." },
+    { "id": "pagos",  "nombre": "Pagos",  "icono": "💳", "descripcion": "Payments: card declined, double charge, invoices..." }
+  ]
+}
+```
+
+Para tener varias versiones, usá otro archivo con `AREAS_FILE`. Viene un ejemplo para una tienda online:
+
+```bash
+AREAS_FILE=config/areas.tienda-online.json ./scripts/start.sh
+```
+
+Consejos: escribí las descripciones en inglés (Kev se entrenó en inglés) y bien concretas, diciendo qué entra en cada área y, si se pisan, qué no. Si la app no arranca, el error dice qué falta en el archivo. Los 60 mensajes de ejemplo y el marcador de aciertos son de las columnas del restaurante: con otras columnas, probá tipeando mensajes o importando un chat.
+
 Otros comandos:
 
 ```bash
@@ -112,8 +135,10 @@ uv run --extra record python scripts/record.py --speed 1   # graba la última se
 ## Estructura
 
 ```
+config/areas.json     las columnas: título, pregunta y áreas que decide Kev (cambiar sin tocar código)
+config/areas.tienda-online.json  ejemplo de otras columnas (AREAS_FILE=...)
 data/mensajes.jsonl   60 mensajes inventados con su respuesta correcta
-soporte/kev.py        cliente de Kev: arma las 4 preguntas y lee las probabilidades
+soporte/kev.py        cliente de Kev: lee config/areas.json, arma las 4 preguntas y lee las probabilidades
 soporte/server.py     FastAPI + WebSocket: hace entrar los mensajes, consulta a Kev y guarda la sesión
 soporte/whatsapp.py   lee un chat exportado de WhatsApp (.txt/.zip) y anonimiza los nombres
 soporte/whatsapp_cloud.py  webhook de WhatsApp Business: firma, mensajes entrantes y respuesta automática
@@ -124,7 +149,7 @@ web/                  la pantalla (decisión a la izquierda, tablero a la derech
 scripts/start.sh      levanta Kev y la bandeja
 scripts/evaluar.py    mide aciertos
 scripts/record.py     graba una sesión como video
-tests/                tests del lector de chats y del webhook (uv run --with pytest pytest -q)
+tests/                tests del lector de chats, del webhook y del archivo de áreas (uv run --with pytest pytest -q)
 ```
 
 ## Créditos

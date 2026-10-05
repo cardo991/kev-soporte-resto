@@ -27,7 +27,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from soporte import whatsapp, whatsapp_cloud
-from soporte.kev import AREAS, Kev
+from soporte.kev import AREAS, CONFIG, Kev
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
@@ -78,6 +78,12 @@ async def broadcast(ev: dict) -> None:
 @app.get("/")
 async def index():
     return FileResponse(WEB / "index.html")
+
+
+@app.get("/api/config")
+async def config():
+    """Las columnas de la bandeja (config/areas.json o AREAS_FILE)."""
+    return {"archivo": CONFIG["_archivo"], "titulo": CONFIG.get("titulo", "Soporte"), "areas": [{k: a[k] for k in ("id", "nombre", "icono")} for a in CONFIG["areas"]]}
 
 
 @app.get("/api/status")
@@ -205,7 +211,8 @@ def verdict_event(m: dict, v) -> dict:
         "column": col,
         "why": why,
         # Sólo los mensajes de ejemplo traen la respuesta correcta; los tipeados o importados no.
-        "truth": {k: m[k] for k in ("area", "urgencia", "enojado", "escalar")} if "area" in m else None,
+        # (y sólo si son de estas mismas columnas: con otro config/areas.json no se comparan).
+        "truth": {k: m[k] for k in ("area", "urgencia", "enojado", "escalar")} if m.get("area") in AREAS else None,
     }
 
 

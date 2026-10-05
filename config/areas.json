@@ -1,0 +1,36 @@
+{
+  "_ayuda": "Las columnas de la bandeja. Cambiá, agregá o sacá áreas y reiniciá la app. 'titulo': el nombre arriba de la bandeja. 'id': en minúsculas, sin espacios. 'descripcion': lo que lee Kev para decidir; mejor en inglés y bien concreta (qué entra y qué no). 'descripcion_es' se usa sólo con KEV_LANG=es. La columna Persona (escalar a un humano) está siempre. Para usar otro archivo: AREAS_FILE=config/otro.json",
+  "titulo": "Soporte del restaurante",
+  "pregunta": "This message was sent by a restaurant to the support team of its restaurant software (point of sale, kitchen printers, online orders, reservations). Which team should handle it?",
+  "pregunta_es": "Este mensaje lo mandó un restaurante al soporte de su software (punto de venta, comanderas, pedidos online, reservas). ¿Qué equipo lo tiene que atender?",
+  "areas": [
+    {
+      "id": "tecnico",
+      "nombre": "Técnico",
+      "icono": "🛠️",
+      "descripcion": "Technical: the in-house system, point of sale, cash register, kitchen printers or screens, tablets, card readers, connection, errors, slowness, how to use a feature (not online orders)",
+      "descripcion_es": "Técnico: el sistema, la caja, comanderas o pantallas de cocina, tablets, lectores de tarjeta, conexión, errores, lentitud, cómo usar una función"
+    },
+    {
+      "id": "facturacion",
+      "nombre": "Facturación",
+      "icono": "💳",
+      "descripcion": "Billing: the restaurant's subscription with us, charges, invoices we send, payments, prices, plans, cancelling the service",
+      "descripcion_es": "Facturación: el abono del restaurante con nosotros, cobros, facturas que le mandamos, pagos, precios, planes, dar de baja el servicio"
+    },
+    {
+      "id": "reservas",
+      "nombre": "Reservas",
+      "icono": "📅",
+      "descripcion": "Reservations: table bookings, the online booking page, booking confirmations and capacity",
+      "descripcion_es": "Reservas: reservas de mesas, la página de reservas online, confirmaciones y cupos"
+    },
+    {
+      "id": "delivery",
+      "nombre": "Delivery",
+      "icono": "🛵",
+      "descripcion": "Delivery: anything about online or delivery orders, even if they fail or do not arrive: the delivery app, online menu, couriers, delivery fees, online payments",
+      "descripcion_es": "Delivery: pedidos online, la integración con la app de delivery, repartidores, menú, precios o costos de envío"
+    }
+  ]
+}

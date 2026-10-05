@@ -5,15 +5,15 @@ const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 if (params.get("clean") === "1") document.body.classList.add("clean");
 
-const COLS = [
-  { id: "tecnico", name: "Técnico", ico: "🛠️" },
-  { id: "facturacion", name: "Facturación", ico: "💳" },
-  { id: "reservas", name: "Reservas", ico: "📅" },
-  { id: "delivery", name: "Delivery", ico: "🛵" },
-  { id: "persona", name: "Persona", ico: "🙋" },
-];
-const AREA_ES = { tecnico: "Técnico", facturacion: "Facturación", reservas: "Reservas", delivery: "Delivery" };
-const AREA_ICO = { tecnico: "🛠️", facturacion: "💳", reservas: "📅", delivery: "🛵" };
+// Las columnas salen de config/areas.json (GET /api/config); la de Persona está siempre.
+let COLS = [];
+let AREA_ES = {};
+let AREA_ICO = {};
+function setAreas(areas) {
+  AREA_ES = Object.fromEntries(areas.map((a) => [a.id, a.nombre]));
+  AREA_ICO = Object.fromEntries(areas.map((a) => [a.id, a.icono]));
+  COLS = [...areas.map((a) => ({ id: a.id, name: a.nombre, ico: a.icono })), { id: "persona", name: "Persona", ico: "🙋" }];
+}
 const URG = ["baja", "media", "alta"];
 const URG_LABEL = ["Baja", "Media", "Urgente"];
 const AVATAR_COLORS = ["#e07a5f", "#3d8b7d", "#7b6cd9", "#d4a017", "#4f7cc4", "#c25b8a", "#6b8f3c"];
@@ -93,7 +93,7 @@ function addCard(v, msg) {
   const tags = [`<i class="pill ${URG[v.urgencia]}">${URG_LABEL[v.urgencia]}</i>`];
   if (v.angry) tags.push(`<i class="tag angry">Enojado</i>`);
   if (v.why) tags.push(`<i class="tag persona">${v.why === "pide una persona" ? "Pide una persona" : "Kev dudó"}</i>`);
-  if (v.truth && v.truth.area !== v.area) tags.push(`<i class="tag wrong" title="Kev se equivocó de área">Era ${AREA_ES[v.truth.area]}</i>`);
+  if (v.truth && v.truth.area !== v.area) tags.push(`<i class="tag wrong" title="Kev se equivocó de área">Era ${AREA_ES[v.truth.area] || v.truth.area}</i>`);
   const where = (msg.de.split("·")[1] || msg.de.split("·")[0] || "").trim();
   card.innerHTML = `<div class="tags">${tags.join("")}</div>${short}
     <div class="meta"><span>${where}</span><span>${fmtMs(v.ms)}</span></div>`;
@@ -290,19 +290,28 @@ $("btn-replay").onclick = () => {
   if (f) playReplay(f, Number($("in-speed").value));
 };
 
-reset();
-loadReplays();
-requestAnimationFrame(animateTimer);
-if (params.get("replay")) {
-  playReplay(params.get("replay"), Number(params.get("speed") || 1));
-} else {
-  // Conectados desde el arranque: así aparecen los mensajes que lleguen por WhatsApp.
-  connect();
-  fetch("/api/status").then((r) => r.json()).then((st) => {
-    if (st.whatsapp && st.whatsapp.receiving) {
-      const b = $("wa-badge");
-      b.textContent = st.whatsapp.auto_reply ? "WhatsApp conectado · responde solo" : "WhatsApp conectado";
-      b.classList.remove("hidden");
-    }
-  }).catch(() => {});
+async function boot() {
+  const cfg = await fetch("/api/config").then((r) => r.json());
+  setAreas(cfg.areas);
+  if (cfg.titulo) {
+    document.querySelector(".brand h1").textContent = cfg.titulo;
+    document.title = `${cfg.titulo} · Kev`;
+  }
+  reset();
+  loadReplays();
+  requestAnimationFrame(animateTimer);
+  if (params.get("replay")) {
+    playReplay(params.get("replay"), Number(params.get("speed") || 1));
+  } else {
+    // Conectados desde el arranque: así aparecen los mensajes que lleguen por WhatsApp.
+    connect();
+    fetch("/api/status").then((r) => r.json()).then((st) => {
+      if (st.whatsapp && st.whatsapp.receiving) {
+        const b = $("wa-badge");
+        b.textContent = st.whatsapp.auto_reply ? "WhatsApp conectado · responde solo" : "WhatsApp conectado";
+        b.classList.remove("hidden");
+      }
+    }).catch(() => {});
+  }
 }
+boot();

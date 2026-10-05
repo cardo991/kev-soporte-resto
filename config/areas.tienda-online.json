@@ -1,0 +1,36 @@
+{
+  "_ayuda": "Ejemplo de otras columnas: el soporte de una tienda online. Para probarlo: AREAS_FILE=config/areas.tienda-online.json ./scripts/start.sh",
+  "titulo": "Soporte de la tienda",
+  "pregunta": "This message was sent by a customer to the support team of an online store. Which team should handle it?",
+  "pregunta_es": "Este mensaje lo mandó un cliente al soporte de una tienda online. ¿Qué equipo lo tiene que atender?",
+  "areas": [
+    {
+      "id": "envios",
+      "nombre": "Envíos",
+      "icono": "📦",
+      "descripcion": "Shipping: where is my order, delivery dates, tracking, courier problems, wrong address, package not arrived",
+      "descripcion_es": "Envíos: dónde está mi pedido, fechas de entrega, seguimiento, problemas con el correo, dirección equivocada, no llegó"
+    },
+    {
+      "id": "pagos",
+      "nombre": "Pagos",
+      "icono": "💳",
+      "descripcion": "Payments: card declined, double charge, installments, invoices, discount codes not applied",
+      "descripcion_es": "Pagos: tarjeta rechazada, cobro duplicado, cuotas, facturas, cupones de descuento que no se aplican"
+    },
+    {
+      "id": "cambios",
+      "nombre": "Cambios",
+      "icono": "🔁",
+      "descripcion": "Returns and exchanges: the customer already received the order and wants to exchange it (wrong size or color, damaged, not what they ordered), return it, or asks about a refund",
+      "descripcion_es": "Cambios y devoluciones: el cliente ya recibió el pedido y lo quiere cambiar (talle o color equivocado, dañado, no es lo que pidió), devolverlo, o pregunta por el reembolso"
+    },
+    {
+      "id": "productos",
+      "nombre": "Productos",
+      "icono": "🏷️",
+      "descripcion": "Products: questions before buying: stock, sizes available, colors, materials, how a product works (not about an order already received)",
+      "descripcion_es": "Productos: consultas antes de comprar: stock, talles disponibles, colores, materiales, cómo funciona un producto (no sobre un pedido ya recibido)"
+    }
+  ]
+}

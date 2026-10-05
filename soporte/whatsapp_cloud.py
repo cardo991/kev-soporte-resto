@@ -19,6 +19,8 @@ from dataclasses import dataclass
 
 import httpx
 
+from soporte.kev import AREA_NAMES
+
 
 def _flag(name: str) -> bool:
     return os.getenv(name, "").strip().lower() in ("1", "true", "yes", "si", "sí")
@@ -100,7 +102,6 @@ def extract_messages(payload: dict) -> list[dict]:
     return out
 
 
-AREA_ES = {"tecnico": "Técnico", "facturacion": "Facturación", "reservas": "Reservas", "delivery": "Delivery"}
 URG_ES = ["baja", "media", "alta"]
 
 
@@ -108,7 +109,7 @@ def reply_text(verdict: dict) -> str:
     """Respuesta automática según lo que decidió Kev."""
     if verdict["column"] == "persona":
         return "¡Hola! Recibimos tu mensaje. Una persona del equipo lo va a revisar y te contacta a la brevedad."
-    area = AREA_ES.get(verdict["area"], verdict["area"])
+    area = AREA_NAMES.get(verdict["area"], verdict["area"])
     if verdict["urgencia"] == 2:
         return f"¡Hola! Recibimos tu mensaje y lo pasamos con prioridad alta al equipo de {area}. Ya lo estamos viendo."
     return f"¡Hola! Recibimos tu mensaje y lo pasamos al equipo de {area} (urgencia {URG_ES[verdict['urgencia']]}). Te respondemos a la brevedad."

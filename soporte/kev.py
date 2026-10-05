@@ -4,28 +4,67 @@ Una sola llamada a `POST /v1/systemone` con cuatro preguntas (área, urgencia, e
 hay que escalar a una persona). Kev las responde todas en una pasada, sin generar texto.
 Los mensajes llegan en español; las preguntas pueden ir en inglés (el idioma en que se
 entrenó Kev) o en español: `lang` elige cuál.
+
+Las áreas (las columnas de la bandeja) salen de `config/areas.json`, o del archivo que diga
+la variable `AREAS_FILE`: para cambiar las columnas no hace falta tocar código.
 """
 
 from __future__ import annotations
 
+import json
+import os
+import re
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 import httpx
+from dotenv import load_dotenv
 
-AREAS = ["tecnico", "facturacion", "reservas", "delivery"]
+ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(ROOT / ".env")  # antes de leer AREAS_FILE
+
+
+def load_config(path: str | Path | None = None) -> dict:
+    """Lee y valida el archivo de áreas. Falla con un mensaje claro si algo está mal."""
+    path = Path(path or os.getenv("AREAS_FILE") or ROOT / "config" / "areas.json")
+    if not path.is_absolute():
+        path = ROOT / path
+    try:
+        cfg = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"No encuentro el archivo de áreas: {path}")
+    except json.JSONDecodeError as e:
+        raise ValueError(f"{path.name} no es un JSON válido (línea {e.lineno}): {e.msg}")
+    areas = cfg.get("areas")
+    if not cfg.get("pregunta") or not isinstance(areas, list) or len(areas) < 2:
+        raise ValueError(f"{path.name}: hacen falta 'pregunta' y al menos 2 'areas'")
+    seen = set()
+    for a in areas:
+        aid = a.get("id", "")
+        if not re.fullmatch(r"[a-z0-9_]+", aid):
+            raise ValueError(f"{path.name}: id inválido {aid!r} (minúsculas, números y _, sin espacios)")
+        if aid == "persona" or aid in seen:
+            raise ValueError(f"{path.name}: id repetido o reservado: {aid!r}")
+        if not a.get("descripcion"):
+            raise ValueError(f"{path.name}: al área {aid!r} le falta la 'descripcion'")
+        seen.add(aid)
+        a.setdefault("nombre", aid.capitalize())
+        a.setdefault("icono", "📌")
+    cfg["_archivo"] = path.name
+    return cfg
+
+
+CONFIG = load_config()
+AREAS = [a["id"] for a in CONFIG["areas"]]
+AREA_NAMES = {a["id"]: a["nombre"] for a in CONFIG["areas"]}
 URGENCIA = ["baja", "media", "alta"]
 
 QUESTIONS = {
     "en": {
         "area": {
-            "instructions": "This message was sent by a restaurant to the support team of its restaurant software (point of sale, kitchen printers, online orders, reservations). Which team should handle it?",
-            "criteria": {
-                "tecnico": "Technical: the in-house system, point of sale, cash register, kitchen printers or screens, tablets, card readers, connection, errors, slowness, how to use a feature (not online orders)",
-                "facturacion": "Billing: the restaurant's subscription with us, charges, invoices we send, payments, prices, plans, cancelling the service",
-                "reservas": "Reservations: table bookings, the online booking page, booking confirmations and capacity",
-                "delivery": "Delivery: anything about online or delivery orders, even if they fail or do not arrive: the delivery app, online menu, couriers, delivery fees, online payments",
-            },
+            "instructions": CONFIG["pregunta"],
+            "criteria": {a["id"]: a["descripcion"] for a in CONFIG["areas"]},
         },
         "urgencia": {
             "instructions": "How urgent is it?",
@@ -42,13 +81,8 @@ QUESTIONS = {
     },
     "es": {
         "area": {
-            "instructions": "Este mensaje lo mandó un restaurante al soporte de su software (punto de venta, comanderas, pedidos online, reservas). ¿Qué equipo lo tiene que atender?",
-            "criteria": {
-                "tecnico": "Técnico: el sistema, la caja, comanderas o pantallas de cocina, tablets, lectores de tarjeta, conexión, errores, lentitud, cómo usar una función",
-                "facturacion": "Facturación: el abono del restaurante con nosotros, cobros, facturas que le mandamos, pagos, precios, planes, dar de baja el servicio",
-                "reservas": "Reservas: reservas de mesas, la página de reservas online, confirmaciones y cupos",
-                "delivery": "Delivery: pedidos online, la integración con la app de delivery, repartidores, menú, precios o costos de envío",
-            },
+            "instructions": CONFIG.get("pregunta_es") or CONFIG["pregunta"],
+            "criteria": {a["id"]: a.get("descripcion_es") or a["descripcion"] for a in CONFIG["areas"]},
         },
         "urgencia": {
             "instructions": "¿Qué tan urgente es?",
