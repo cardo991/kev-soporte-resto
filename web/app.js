@@ -72,6 +72,7 @@ function addCard(v, msg) {
   const col = $(`col-${v.column}`);
   const card = document.createElement("div");
   card.className = `card ${URG[v.urgencia]}`;
+  card.id = `card-${v.id}`;
   const short = msg.texto.length > 90 ? msg.texto.slice(0, 88) + "…" : msg.texto;
   const wrong = v.truth && v.truth.area !== v.area ? `<span class="bad" title="área correcta: ${AREA_ES[v.truth.area]}">✗ era ${AREA_ES[v.truth.area]}</span>` : "";
   card.innerHTML = `${v.angry ? "😠 " : ""}${short}
@@ -100,6 +101,7 @@ function handle(ev) {
 
     case "incoming": {
       S.msgs[ev.msg.id] = ev.msg;
+      if (ev.source === "whatsapp_live") $("source-note").textContent = "Mensajes en vivo de WhatsApp · remitentes anonimizados · se procesan en esta máquina";
       $("in-from").textContent = ev.msg.de;
       $("in-text").textContent = ev.msg.texto;
       const box = $("incoming");
@@ -143,6 +145,12 @@ function handle(ev) {
       }
       addCard(ev, S.msgs[ev.id]);
       renderStats();
+      break;
+    }
+
+    case "replied": {
+      const meta = document.querySelector(`#card-${CSS.escape(ev.id)} .meta`);
+      if (meta) meta.insertAdjacentHTML("afterbegin", `<span class="replied" title="${ev.text.replace(/"/g, "&quot;")}">↩ respondido</span>`);
       break;
     }
 
@@ -252,4 +260,16 @@ $("btn-replay").onclick = () => {
 reset();
 loadReplays();
 requestAnimationFrame(animateTimer);
-if (params.get("replay")) playReplay(params.get("replay"), Number(params.get("speed") || 1));
+if (params.get("replay")) {
+  playReplay(params.get("replay"), Number(params.get("speed") || 1));
+} else {
+  // Conectados desde el arranque: así aparecen los mensajes que lleguen por WhatsApp.
+  connect();
+  fetch("/api/status").then((r) => r.json()).then((st) => {
+    if (st.whatsapp && st.whatsapp.receiving) {
+      const b = $("wa-badge");
+      b.textContent = st.whatsapp.auto_reply ? "WhatsApp conectado · responde solo" : "WhatsApp conectado";
+      b.classList.remove("hidden");
+    }
+  }).catch(() => {});
+}

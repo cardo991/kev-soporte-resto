@@ -93,7 +93,11 @@ Tocá **▶ Abrir la bandeja** y empiezan a entrar los mensajes de ejemplo. Cada
   - Todo se procesa en tu máquina: el chat no sale a internet. Las sesiones quedan en `replays/`, que no se sube al repo. Ojo con publicar videos de chats reales.
   - Estos mensajes no tienen respuesta correcta, así que no suman al marcador de aciertos.
 
-Conectarlo a WhatsApp en vivo requiere la API oficial de WhatsApp Business (cuenta de empresa verificada, número dedicado y un webhook con URL pública). Las librerías no oficiales que se conectan como si fueran WhatsApp Web violan los términos de WhatsApp y pueden hacer que te bloqueen el número.
+### Conectado a WhatsApp en vivo
+
+La app trae un webhook para la **API oficial de WhatsApp Business (Cloud API de Meta)**: los mensajes que le escriban al número del negocio entran solos a la bandeja y, si querés, Kev le responde al cliente ("lo pasamos al equipo de Técnico…"). Cada mensaje se verifica con la firma de Meta y los remitentes se muestran anonimizados.
+
+Se configura con un `.env` (ver `.env.example`). **La guía paso a paso está en [docs/WHATSAPP.md](docs/WHATSAPP.md)**: crear la app en Meta, conseguir las claves, exponer tu compu con un túnel, configurar el webhook y probarlo, incluso sin Meta con `scripts/simular_whatsapp.py`.
 
 Otros comandos:
 
@@ -112,11 +116,15 @@ data/mensajes.jsonl   60 mensajes inventados con su respuesta correcta
 soporte/kev.py        cliente de Kev: arma las 4 preguntas y lee las probabilidades
 soporte/server.py     FastAPI + WebSocket: hace entrar los mensajes, consulta a Kev y guarda la sesión
 soporte/whatsapp.py   lee un chat exportado de WhatsApp (.txt/.zip) y anonimiza los nombres
+soporte/whatsapp_cloud.py  webhook de WhatsApp Business: firma, mensajes entrantes y respuesta automática
+scripts/simular_whatsapp.py  manda un mensaje de WhatsApp simulado (y firmado) a tu webhook local
+docs/WHATSAPP.md      guía para conectarlo a WhatsApp
+.env.example          configuración (copiar a .env)
 web/                  la pantalla (decisión a la izquierda, tablero a la derecha)
 scripts/start.sh      levanta Kev y la bandeja
 scripts/evaluar.py    mide aciertos
 scripts/record.py     graba una sesión como video
-tests/                tests del lector de WhatsApp (uv run --with pytest pytest -q)
+tests/                tests del lector de chats y del webhook (uv run --with pytest pytest -q)
 ```
 
 ## Créditos

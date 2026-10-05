@@ -97,6 +97,9 @@ body.clean .controls { display: none; }
 .card .bad { color: var(--alta); }
 @keyframes drop { from { opacity: 0; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: none; } }
 
+.wa-badge { font-size: 12px; font-weight: 700; vertical-align: middle; margin-left: 10px; padding: 4px 9px; border-radius: 999px; background: #12291f; color: #7ff0b4; border: 1px solid #1d5a40; }
+.wa-badge.hidden { display: none; }
+.card .replied { color: #7ff0b4; }
 .composer { display: grid; grid-template-columns: 260px 1fr auto; gap: 10px; }
 .composer input { background: #070b13; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font: inherit; font-size: 14px; }
 .composer input:focus { outline: none; border-color: var(--kev); }

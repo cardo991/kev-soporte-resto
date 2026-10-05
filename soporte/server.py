@@ -1,4 +1,8 @@
-"""Bandeja de soporte en vivo: van entrando mensajes inventados y Kev decide cada uno.
+"""Bandeja de soporte en vivo: van entrando mensajes y Kev decide cada uno.
+
+Los mensajes pueden ser los de ejemplo, tipeados en la pantalla, importados de un chat
+exportado de WhatsApp o, si está configurado, llegar en vivo desde WhatsApp Business
+(webhook en /webhook/whatsapp, ver docs/WHATSAPP.md).
 
     uv run uvicorn soporte.server:app --port 8002
 """
@@ -8,20 +12,26 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import logging
 import os
+from collections import deque
 import random
 import time
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse
+import httpx
+from dotenv import load_dotenv
+from fastapi import Body, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from soporte import whatsapp
+from soporte import whatsapp, whatsapp_cloud
 from soporte.kev import AREAS, Kev
 
 ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(ROOT / ".env")
+log = logging.getLogger("soporte")
 WEB = ROOT / "web"
 REPLAYS = ROOT / "replays"
 REPLAYS.mkdir(exist_ok=True)
@@ -43,6 +53,27 @@ def load_messages() -> list[dict]:
 app = FastAPI()
 app.mount("/web", StaticFiles(directory=WEB), name="web")
 
+WA = whatsapp_cloud.Config.from_env()
+SCREENS: set[WebSocket] = set()  # pantallas abiertas: ahí se muestran los mensajes que llegan por WhatsApp
+SEEN_WAMIDS: deque[str] = deque(maxlen=500)  # Meta reintenta si tardamos: no procesar dos veces
+WA_ALIASES: dict[str, str] = {}  # wa_id → "Contacto N" (el teléfono no se muestra ni se guarda)
+_kev_shared: Kev | None = None
+
+
+def shared_kev() -> Kev:
+    global _kev_shared
+    if _kev_shared is None:
+        _kev_shared = Kev(KEV_URL, lang=LANG)
+    return _kev_shared
+
+
+async def broadcast(ev: dict) -> None:
+    for ws in list(SCREENS):
+        try:
+            await ws.send_json(ev)
+        except Exception:  # noqa: BLE001 — una pantalla cerrada no debe frenar a las demás
+            SCREENS.discard(ws)
+
 
 @app.get("/")
 async def index():
@@ -53,9 +84,66 @@ async def index():
 async def status():
     try:
         r = await Kev(KEV_URL).client.get(f"{KEV_URL}/v1/models")
-        return {"kev": {"ok": r.status_code == 200, "url": KEV_URL, "model": r.json()["models"][0].get("run")}}
+        kev = {"ok": r.status_code == 200, "url": KEV_URL, "model": r.json()["models"][0].get("run")}
     except Exception as e:  # noqa: BLE001 — sólo es un chequeo de salud
-        return {"kev": {"ok": False, "url": KEV_URL, "error": str(e)}}
+        kev = {"ok": False, "url": KEV_URL, "error": str(e)}
+    return {"kev": kev, "whatsapp": {"receiving": WA.receiving, "auto_reply": WA.can_reply, "signed": bool(WA.app_secret)}}
+
+
+# ---------- WhatsApp Business (Cloud API) ----------------------------------------------
+
+@app.get("/webhook/whatsapp")
+async def whatsapp_verify(request: Request):
+    """Meta verifica el webhook una vez: hay que devolver hub.challenge tal cual (texto, no JSON)."""
+    q = request.query_params
+    if WA.verify_token and q.get("hub.mode") == "subscribe" and q.get("hub.verify_token") == WA.verify_token:
+        return PlainTextResponse(q.get("hub.challenge", ""))
+    raise HTTPException(403, "verify token inválido o WHATSAPP_VERIFY_TOKEN sin configurar")
+
+
+@app.post("/webhook/whatsapp")
+async def whatsapp_incoming(request: Request):
+    raw = await request.body()  # la firma se calcula sobre el cuerpo crudo, antes de parsear
+    if WA.app_secret:
+        if not whatsapp_cloud.verify_signature(raw, request.headers.get("x-hub-signature-256"), WA.app_secret):
+            raise HTTPException(401, "firma inválida")
+    elif not WA.allow_unsigned:
+        raise HTTPException(503, "Falta WHATSAPP_APP_SECRET en .env (ver docs/WHATSAPP.md)")
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        raise HTTPException(400, "JSON inválido")
+    for m in whatsapp_cloud.extract_messages(payload):
+        if m["wamid"] in SEEN_WAMIDS:
+            continue
+        SEEN_WAMIDS.append(m["wamid"])
+        # Respondemos 200 enseguida (Meta espera pocos segundos) y procesamos aparte.
+        asyncio.create_task(process_whatsapp(m))
+    return {"ok": True}
+
+
+async def process_whatsapp(m: dict) -> None:
+    alias = WA_ALIASES.setdefault(m["wa_id"], f"Contacto {len(WA_ALIASES) + 1}")
+    who = m["name"] if WA.show_names and m["name"] else alias
+    msg = {"id": f"wa-{m['wamid'][-12:]}", "de": f"{who} · WhatsApp en vivo", "texto": m["text"]}
+    await broadcast({"type": "incoming", "msg": msg, "t": 0, "source": "whatsapp_live"})
+    await broadcast({"type": "thinking", "id": msg["id"], "t": 0})
+    try:
+        v = await shared_kev().classify(msg["de"], msg["texto"])
+    except Exception as e:  # noqa: BLE001
+        log.warning("Kev no respondió a un mensaje de WhatsApp: %s", e)
+        await broadcast({"type": "error", "message": f"Kev no respondió: {e}"})
+        return
+    ev = verdict_event(msg, v)
+    await broadcast({**ev, "t": 0})
+    if WA.can_reply:
+        try:
+            async with httpx.AsyncClient() as client:
+                await whatsapp_cloud.send_reply(WA, client, m["wa_id"], whatsapp_cloud.reply_text(ev), reply_to=m["wamid"])
+            await broadcast({"type": "replied", "id": msg["id"], "text": whatsapp_cloud.reply_text(ev), "t": 0})
+        except httpx.HTTPError as e:
+            log.warning("No se pudo responder por WhatsApp: %s", e)
+            await broadcast({"type": "error", "message": f"No se pudo responder por WhatsApp: {e}"})
 
 
 @app.get("/api/replays")
@@ -159,6 +247,7 @@ class Session:
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket):
     await ws.accept()
+    SCREENS.add(ws)
     task: asyncio.Task | None = None
     kev = Kev(KEV_URL, lang=LANG)
     typed = 0
@@ -200,3 +289,5 @@ async def ws_endpoint(ws: WebSocket):
     except WebSocketDisconnect:
         if task:
             task.cancel()
+    finally:
+        SCREENS.discard(ws)

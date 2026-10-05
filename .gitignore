@@ -1,6 +1,7 @@
 .venv/
 __pycache__/
 .DS_Store
+.env
 vendor
 videos/
 replays/*.json
