@@ -6,14 +6,28 @@ const params = new URLSearchParams(location.search);
 if (params.get("clean") === "1") document.body.classList.add("clean");
 
 const COLS = [
-  { id: "tecnico", name: "TÉCNICO" },
-  { id: "facturacion", name: "FACTURACIÓN" },
-  { id: "reservas", name: "RESERVAS" },
-  { id: "delivery", name: "DELIVERY" },
-  { id: "persona", name: "PERSONA 👤" },
+  { id: "tecnico", name: "Técnico", ico: "🛠️" },
+  { id: "facturacion", name: "Facturación", ico: "💳" },
+  { id: "reservas", name: "Reservas", ico: "📅" },
+  { id: "delivery", name: "Delivery", ico: "🛵" },
+  { id: "persona", name: "Persona", ico: "🙋" },
 ];
 const AREA_ES = { tecnico: "Técnico", facturacion: "Facturación", reservas: "Reservas", delivery: "Delivery" };
+const AREA_ICO = { tecnico: "🛠️", facturacion: "💳", reservas: "📅", delivery: "🛵" };
 const URG = ["baja", "media", "alta"];
+const URG_LABEL = ["Baja", "Media", "Urgente"];
+const AVATAR_COLORS = ["#e07a5f", "#3d8b7d", "#7b6cd9", "#d4a017", "#4f7cc4", "#c25b8a", "#6b8f3c"];
+
+function initials(de) {
+  const who = (de || "").split("·")[0].trim();
+  const parts = who.split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] || "?") + (parts[1]?.[0] || "")).toUpperCase();
+}
+function avatarColor(de) {
+  let h = 0;
+  for (const ch of de || "") h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
 
 let S;
 let speed = 1;
@@ -23,7 +37,7 @@ let ws;
 function reset() {
   S = { msgs: {}, ms: [], areaOk: 0, urgOk: 0, angryOk: 0, escOk: 0, n: 0, nEval: 0, thinkStart: null };
   $("kanban").innerHTML = COLS.map((c) => `
-    <section class="col ${c.id}"><header><span>${c.name}</span><span class="count" id="count-${c.id}">0</span></header>
+    <section class="col ${c.id}"><header><span class="ico">${c.ico}</span><span>${c.name}</span><span class="count" id="count-${c.id}">0</span></header>
     <div class="cards" id="col-${c.id}"></div></section>`).join("");
   $("q-area").innerHTML = "";
   $("q-urg").innerHTML = "";
@@ -31,6 +45,8 @@ function reset() {
   setMeter("esc", null);
   $("ms").textContent = "–";
   $("v-text").textContent = "esperando…";
+  $("history").innerHTML = '<li class="empty">Todavía no entró ningún mensaje.</li>';
+  $("in-avatar").textContent = "·";
   $("verdict").classList.remove("persona");
   renderStats();
   document.body.dataset.done = "";
@@ -38,7 +54,7 @@ function reset() {
 
 function bars(el, entries, best) {
   $(el).innerHTML = entries.map(([label, p, key]) => `
-    <div class="bar ${key === best ? "best" : ""}">
+    <div class="bar ${key === best ? "best" : ""} u${key}">
       <span class="name">${label}</span>
       <span class="track"><span class="fill" style="width:${(p * 100).toFixed(1)}%"></span></span>
       <span class="pct">${Math.round(p * 100)}%</span>
@@ -73,12 +89,26 @@ function addCard(v, msg) {
   const card = document.createElement("div");
   card.className = `card ${URG[v.urgencia]}`;
   card.id = `card-${v.id}`;
-  const short = msg.texto.length > 90 ? msg.texto.slice(0, 88) + "…" : msg.texto;
-  const wrong = v.truth && v.truth.area !== v.area ? `<span class="bad" title="área correcta: ${AREA_ES[v.truth.area]}">✗ era ${AREA_ES[v.truth.area]}</span>` : "";
-  card.innerHTML = `${v.angry ? "😠 " : ""}${short}
-    <div class="meta"><span>${v.why ? `<span class="why">${v.why}</span>` : msg.de.split("·")[1]?.trim() || ""}</span>${wrong}<span>${fmtMs(v.ms)}</span></div>`;
+  const short = msg.texto.length > 110 ? msg.texto.slice(0, 108) + "…" : msg.texto;
+  const tags = [`<i class="pill ${URG[v.urgencia]}">${URG_LABEL[v.urgencia]}</i>`];
+  if (v.angry) tags.push(`<i class="tag angry">Enojado</i>`);
+  if (v.why) tags.push(`<i class="tag persona">${v.why === "pide una persona" ? "Pide una persona" : "Kev dudó"}</i>`);
+  if (v.truth && v.truth.area !== v.area) tags.push(`<i class="tag wrong" title="Kev se equivocó de área">Era ${AREA_ES[v.truth.area]}</i>`);
+  const where = (msg.de.split("·")[1] || msg.de.split("·")[0] || "").trim();
+  card.innerHTML = `<div class="tags">${tags.join("")}</div>${short}
+    <div class="meta"><span>${where}</span><span>${fmtMs(v.ms)}</span></div>`;
   col.prepend(card);
   $(`count-${v.column}`).textContent = col.children.length;
+}
+
+function addHistory(v, msg) {
+  const list = $("history");
+  list.querySelector(".empty")?.remove();
+  const li = document.createElement("li");
+  const ico = v.column === "persona" ? "🙋" : AREA_ICO[v.area];
+  li.innerHTML = `<span>${ico}</span><span class="txt">${msg.texto}</span><i class="pill ${URG[v.urgencia]}">${URG_LABEL[v.urgencia]}</i><span class="ms">${fmtMs(v.ms)}</span>`;
+  list.prepend(li);
+  while (list.children.length > 8) list.lastChild.remove();
 }
 
 function animateTimer() {
@@ -104,6 +134,8 @@ function handle(ev) {
       if (ev.source === "whatsapp_live") $("source-note").textContent = "Mensajes en vivo de WhatsApp · remitentes anonimizados · se procesan en esta máquina";
       $("in-from").textContent = ev.msg.de;
       $("in-text").textContent = ev.msg.texto;
+      $("in-avatar").textContent = initials(ev.msg.de);
+      $("in-avatar").style.background = avatarColor(ev.msg.de);
       const box = $("incoming");
       box.classList.remove("flash");
       void box.offsetWidth;
@@ -128,10 +160,10 @@ function handle(ev) {
       const v = $("verdict");
       if (ev.column === "persona") {
         v.classList.add("persona");
-        $("v-text").innerHTML = `PERSONA 👤 <span class="muted">· ${ev.why}</span><small>${fmtMs(ev.ms)}</small>`;
+        $("v-text").innerHTML = `🙋 Una persona <span class="why">${ev.why === "pide una persona" ? "lo pide" : "Kev no está seguro"}</span><span class="ms">${fmtMs(ev.ms)}</span>`;
       } else {
         v.classList.remove("persona");
-        $("v-text").innerHTML = `${AREA_ES[ev.area].toUpperCase()} · urgencia ${URG[ev.urgencia]}${ev.angry ? " · 😠" : ""}<small>${fmtMs(ev.ms)}</small>`;
+        $("v-text").innerHTML = `${AREA_ICO[ev.area]} ${AREA_ES[ev.area]} <i class="pill ${URG[ev.urgencia]}">${URG_LABEL[ev.urgencia]}</i>${ev.angry ? '<i class="tag angry">Enojado</i>' : ""}<span class="ms">${fmtMs(ev.ms)}</span>`;
       }
       S.n += 1;
       S.ms.push(ev.ms);
@@ -144,13 +176,14 @@ function handle(ev) {
         S.escOk += (ev.escalar >= 0.6) === ev.truth.escalar;
       }
       addCard(ev, S.msgs[ev.id]);
+      addHistory(ev, S.msgs[ev.id]);
       renderStats();
       break;
     }
 
     case "replied": {
-      const meta = document.querySelector(`#card-${CSS.escape(ev.id)} .meta`);
-      if (meta) meta.insertAdjacentHTML("afterbegin", `<span class="replied" title="${ev.text.replace(/"/g, "&quot;")}">↩ respondido</span>`);
+      const tags = document.querySelector(`#card-${CSS.escape(ev.id)} .tags`);
+      if (tags) tags.insertAdjacentHTML("beforeend", `<i class="tag replied" title="${ev.text.replace(/"/g, "&quot;")}">Respondido</i>`);
       break;
     }
 

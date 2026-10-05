@@ -5,84 +5,98 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Soporte con Kev</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/web/style.css">
 </head>
 <body>
-  <section id="controls" class="controls">
+  <header class="appbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">K</span>
+      <div>
+        <h1>Soporte del restaurante</h1>
+        <p>Atendido por Kev · una IA que corre en esta notebook <span class="wa-badge hidden" id="wa-badge">WhatsApp conectado</span></p>
+      </div>
+    </div>
+    <dl class="kpis">
+      <div><dt>Mensajes</dt><dd id="st-n">0</dd></div>
+      <div><dt>Área correcta</dt><dd id="st-area">–</dd></div>
+      <div><dt>Tiempo promedio</dt><dd id="st-avg">–</dd></div>
+      <div><dt>Costo</dt><dd>$0</dd></div>
+    </dl>
+  </header>
+
+  <section id="controls" class="toolbar">
+    <button class="primary" id="btn-start">Abrir la bandeja</button>
+    <label class="file-btn" title="En WhatsApp: el chat → Más → Exportar chat → Sin archivos">Importar chat de WhatsApp<input id="in-wa" type="file" accept=".txt,.zip,text/plain,application/zip" hidden></label>
+    <span class="sep"></span>
     <label>Mensajes <select id="in-count"><option value="24">24</option><option value="40">40</option><option value="60">60 (todos)</option><option value="12">12</option></select></label>
-    <label>Ritmo <select id="in-delay"><option value="1600">normal</option><option value="2600">lento</option><option value="900">rápido</option></select></label>
-    <label><input id="in-shuffle" type="checkbox"> Mezclar</label>
-    <button id="btn-start">▶ Abrir la bandeja</button>
-    <label class="file-btn" title="En WhatsApp: el chat → ⋮ / nombre del contacto → Exportar chat → Sin archivos">📎 Importar chat de WhatsApp<input id="in-wa" type="file" accept=".txt,.zip,text/plain,application/zip" hidden></label>
+    <label>Ritmo <select id="in-delay"><option value="1600">Normal</option><option value="2600">Lento</option><option value="900">Rápido</option></select></label>
+    <label class="check"><input id="in-shuffle" type="checkbox"> Mezclar</label>
     <span class="sep"></span>
     <label>Repetición <select id="in-replay"><option value="">–</option></select></label>
     <label>Velocidad <select id="in-speed"><option value="1">1×</option><option value="2">2×</option></select></label>
-    <button id="btn-replay">⟲ Reproducir</button>
+    <button id="btn-replay">Reproducir</button>
     <span id="status" class="status"></span>
   </section>
 
   <main id="app">
     <!-- IZQUIERDA: el mensaje y cómo decide Kev -->
-    <aside class="brain">
-      <header class="b-head">
+    <aside class="panel decision">
+      <header class="panel-head">
         <div>
-          <h1>KEV</h1>
-          <p class="model">Kev-0.8B · open source · corre en mi notebook</p>
+          <h2>Cómo decide Kev</h2>
+          <p class="sub">Una sola pasada · 4 preguntas a la vez · sin escribir texto</p>
         </div>
-        <div class="timer" id="timer"><span id="ms">–</span><small>ms</small><span class="lbl">esta decisión</span></div>
+        <div class="timer" id="timer"><span class="spin" aria-hidden="true"></span><b id="ms">–</b><small>ms</small></div>
       </header>
 
       <div class="incoming" id="incoming">
-        <div class="from" id="in-from">Bandeja vacía</div>
-        <div class="bubble-msg" id="in-text">Tocá “Abrir la bandeja” para que empiecen a entrar mensajes.</div>
+        <span class="avatar" id="in-avatar">·</span>
+        <div class="msg">
+          <div class="from" id="in-from">Bandeja vacía</div>
+          <div class="bubble-msg" id="in-text">Tocá “Abrir la bandeja” para que empiecen a entrar mensajes.</div>
+        </div>
       </div>
 
-      <p class="how">Una sola pasada, sin escribir texto: responde las 4 preguntas a la vez con una probabilidad cada una.</p>
-
       <section class="q">
-        <h2><span class="n">1</span> ¿A qué área va?</h2>
+        <h3>¿A qué área va?</h3>
         <div class="bars" id="q-area"></div>
       </section>
       <section class="q">
-        <h2><span class="n">2</span> ¿Qué tan urgente es?</h2>
-        <div class="bars" id="q-urg"></div>
+        <h3>¿Qué tan urgente es?</h3>
+        <div class="bars urg" id="q-urg"></div>
       </section>
       <section class="q two">
         <div>
-          <h2><span class="n">3</span> ¿Está enojado?</h2>
+          <h3>¿Está enojado?</h3>
           <div class="meter-row"><div class="meter"><div class="fill" id="q-angry"></div></div><span class="pct" id="q-angry-p">–</span></div>
         </div>
         <div>
-          <h2><span class="n">4</span> ¿Lo toma una persona?</h2>
+          <h3>¿Lo toma una persona?</h3>
           <div class="meter-row"><div class="meter"><div class="fill" id="q-esc"></div></div><span class="pct" id="q-esc-p">–</span></div>
         </div>
       </section>
 
-      <div class="verdict" id="verdict"><span class="arrow">→</span><span id="v-text">esperando…</span></div>
+      <div class="verdict" id="verdict"><span class="lbl">Va a</span><span id="v-text">esperando…</span></div>
+
+      <section class="history">
+        <h3>Últimas decisiones</h3>
+        <ol id="history"><li class="empty">Todavía no entró ningún mensaje.</li></ol>
+      </section>
     </aside>
 
     <!-- DERECHA: el tablero -->
-    <section class="board-side">
-      <header class="top">
-        <div class="title">Soporte del restaurante <span class="muted">· atendido por IA</span> <span class="wa-badge hidden" id="wa-badge">WhatsApp conectado</span></div>
-        <div class="hud">
-          <div><span class="lbl">mensajes</span><span class="num" id="st-n">0</span></div>
-          <div><span class="lbl">área correcta</span><span class="num" id="st-area">–</span></div>
-          <div><span class="lbl">promedio</span><span class="num" id="st-avg">–</span></div>
-          <div><span class="lbl">costo</span><span class="num">$0</span></div>
-        </div>
-      </header>
+    <section class="board">
       <div class="kanban" id="kanban"></div>
       <form class="composer" id="composer" autocomplete="off">
         <input id="cmp-de" type="text" placeholder="Quién escribe (ej: Encargado · parrilla)">
-        <input id="cmp-text" type="text" placeholder="Escribí un mensaje para el soporte y apretá Enter…" required>
-        <button type="submit">Enviar a Kev</button>
+        <input id="cmp-text" type="text" placeholder="Escribile al soporte y apretá Enter…" required>
+        <button class="primary" type="submit">Enviar</button>
       </form>
       <footer class="foot">
-        <span><i class="dot alta"></i> urgente</span><span><i class="dot media"></i> media</span><span><i class="dot baja"></i> baja</span>
-        <span>😠 enojado</span>
-        <span class="muted" id="source-note">Mensajes inventados para la demo · ningún dato real</span>
+        <span class="legend"><i class="pill alta">Urgente</i><i class="pill media">Media</i><i class="pill baja">Baja</i><i class="tag angry">Enojado</i></span>
+        <span class="note" id="source-note">Mensajes inventados para la demo · ningún dato real</span>
         <span class="score" id="st-more"></span>
       </footer>
     </section>
