@@ -21,7 +21,7 @@ let replayTimers = [];
 let ws;
 
 function reset() {
-  S = { msgs: {}, ms: [], areaOk: 0, urgOk: 0, angryOk: 0, escOk: 0, n: 0, thinkStart: null };
+  S = { msgs: {}, ms: [], areaOk: 0, urgOk: 0, angryOk: 0, escOk: 0, n: 0, nEval: 0, thinkStart: null };
   $("kanban").innerHTML = COLS.map((c) => `
     <section class="col ${c.id}"><header><span>${c.name}</span><span class="count" id="count-${c.id}">0</span></header>
     <div class="cards" id="col-${c.id}"></div></section>`).join("");
@@ -60,11 +60,12 @@ function pct(arr, q) {
 
 function renderStats() {
   $("st-n").textContent = S.n;
-  $("st-area").textContent = S.n ? `${S.areaOk}/${S.n}` : "–";
+  $("st-area").textContent = S.nEval ? `${S.areaOk}/${S.nEval}` : "–";
   $("st-avg").textContent = fmtMs(S.ms.length ? S.ms.reduce((a, b) => a + b, 0) / S.ms.length : null);
-  $("st-more").textContent = S.n
-    ? `urgencia ${Math.round((S.urgOk / S.n) * 100)}% · enojo ${Math.round((S.angryOk / S.n) * 100)}% · escalar ${Math.round((S.escOk / S.n) * 100)}% · p95 ${fmtMs(pct(S.ms, 0.95))}`
-    : "";
+  const e = S.nEval;
+  $("st-more").textContent = e
+    ? `urgencia ${Math.round((S.urgOk / e) * 100)}% · enojo ${Math.round((S.angryOk / e) * 100)}% · escalar ${Math.round((S.escOk / e) * 100)}% · p95 ${fmtMs(pct(S.ms, 0.95))}`
+    : S.n ? `sin respuestas correctas para comparar · p95 ${fmtMs(pct(S.ms, 0.95))}` : "";
 }
 
 function addCard(v, msg) {
@@ -72,7 +73,7 @@ function addCard(v, msg) {
   const card = document.createElement("div");
   card.className = `card ${URG[v.urgencia]}`;
   const short = msg.texto.length > 90 ? msg.texto.slice(0, 88) + "…" : msg.texto;
-  const wrong = v.truth.area !== v.area ? `<span class="bad" title="área correcta: ${AREA_ES[v.truth.area]}">✗ era ${AREA_ES[v.truth.area]}</span>` : "";
+  const wrong = v.truth && v.truth.area !== v.area ? `<span class="bad" title="área correcta: ${AREA_ES[v.truth.area]}">✗ era ${AREA_ES[v.truth.area]}</span>` : "";
   card.innerHTML = `${v.angry ? "😠 " : ""}${short}
     <div class="meta"><span>${v.why ? `<span class="why">${v.why}</span>` : msg.de.split("·")[1]?.trim() || ""}</span>${wrong}<span>${fmtMs(v.ms)}</span></div>`;
   col.prepend(card);
@@ -91,6 +92,9 @@ function handle(ev) {
   switch (ev.type) {
     case "init":
       reset();
+      $("source-note").textContent = ev.source === "whatsapp"
+        ? "Chat importado de WhatsApp · nombres reemplazados por “Contacto N” · se procesa sólo en esta máquina"
+        : "Mensajes inventados para la demo · ningún dato real";
       if (!replayTimers.length) setStatus("atendiendo…");
       break;
 
@@ -129,10 +133,14 @@ function handle(ev) {
       }
       S.n += 1;
       S.ms.push(ev.ms);
-      S.areaOk += ev.area === ev.truth.area;
-      S.urgOk += ev.urgencia === ev.truth.urgencia;
-      S.angryOk += ev.angry === ev.truth.enojado;
-      S.escOk += (ev.escalar >= 0.6) === ev.truth.escalar;
+      if (ev.truth) {
+        // sólo los mensajes de ejemplo traen la respuesta correcta
+        S.nEval += 1;
+        S.areaOk += ev.area === ev.truth.area;
+        S.urgOk += ev.urgencia === ev.truth.urgencia;
+        S.angryOk += ev.angry === ev.truth.enojado;
+        S.escOk += (ev.escalar >= 0.6) === ev.truth.escalar;
+      }
       addCard(ev, S.msgs[ev.id]);
       renderStats();
       break;
@@ -180,7 +188,7 @@ async function loadReplays() {
   const list = await fetch("/api/replays").then((r) => r.json()).catch(() => []);
   const sel = $("in-replay");
   const cur = sel.value;
-  sel.innerHTML = '<option value="">–</option>' + list.map((r) => `<option value="${r.file}">${r.created} · ${r.messages} mensajes</option>`).join("");
+  sel.innerHTML = '<option value="">–</option>' + list.map((r) => `<option value="${r.file}">${r.created} · ${r.messages} mensajes${r.source === "whatsapp" ? " · WhatsApp" : ""}</option>`).join("");
   if (cur) sel.value = cur;
 }
 
@@ -199,6 +207,43 @@ async function playReplay(file, spd) {
 }
 
 $("btn-start").onclick = startLive;
+
+// ---------- mensajes propios ------------------------------------------------------------
+
+$("composer").onsubmit = async (e) => {
+  e.preventDefault();
+  const texto = $("cmp-text").value.trim();
+  if (!texto) return;
+  stopReplay();
+  speed = 1;
+  await connect();
+  ws.send(JSON.stringify({ action: "classify", de: $("cmp-de").value.trim() || "Vos", texto }));
+  $("source-note").textContent = "Incluye mensajes tipeados a mano · se procesan sólo en esta máquina";
+  $("cmp-text").value = "";
+  $("cmp-text").focus();
+};
+
+$("in-wa").onchange = async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  setStatus(`leyendo ${file.name}…`);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  const res = await fetch("/api/whatsapp", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ filename: file.name, data_b64: btoa(bin), limit: Number($("in-count").value) }),
+  });
+  const data = await res.json();
+  if (!res.ok) return setStatus(data.detail || "no pude leer el chat", true);
+  stopReplay();
+  speed = 1;
+  setStatus(`${data.count} mensajes importados (nombres reemplazados por "Contacto N")`);
+  await connect();
+  ws.send(JSON.stringify({ action: "start", messages: data.messages, delay_ms: $("in-delay").value }));
+};
 $("btn-replay").onclick = () => {
   const f = $("in-replay").value;
   if (f) playReplay(f, Number($("in-speed").value));

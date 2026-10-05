@@ -14,6 +14,7 @@
     <label>Ritmo <select id="in-delay"><option value="1600">normal</option><option value="2600">lento</option><option value="900">rápido</option></select></label>
     <label><input id="in-shuffle" type="checkbox"> Mezclar</label>
     <button id="btn-start">▶ Abrir la bandeja</button>
+    <label class="file-btn" title="En WhatsApp: el chat → ⋮ / nombre del contacto → Exportar chat → Sin archivos">📎 Importar chat de WhatsApp<input id="in-wa" type="file" accept=".txt,.zip,text/plain,application/zip" hidden></label>
     <span class="sep"></span>
     <label>Repetición <select id="in-replay"><option value="">–</option></select></label>
     <label>Velocidad <select id="in-speed"><option value="1">1×</option><option value="2">2×</option></select></label>
@@ -73,10 +74,15 @@
         </div>
       </header>
       <div class="kanban" id="kanban"></div>
+      <form class="composer" id="composer" autocomplete="off">
+        <input id="cmp-de" type="text" placeholder="Quién escribe (ej: Encargado · parrilla)">
+        <input id="cmp-text" type="text" placeholder="Escribí un mensaje para el soporte y apretá Enter…" required>
+        <button type="submit">Enviar a Kev</button>
+      </form>
       <footer class="foot">
         <span><i class="dot alta"></i> urgente</span><span><i class="dot media"></i> media</span><span><i class="dot baja"></i> baja</span>
         <span>😠 enojado</span>
-        <span class="muted">Mensajes inventados para la demo · ningún dato real</span>
+        <span class="muted" id="source-note">Mensajes inventados para la demo · ningún dato real</span>
         <span class="score" id="st-more"></span>
       </footer>
     </section>

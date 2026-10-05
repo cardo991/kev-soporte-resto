@@ -83,7 +83,17 @@ uv sync
 open http://127.0.0.1:8002
 ```
 
-Tocá **▶ Abrir la bandeja** y empiezan a entrar mensajes. Cada sesión queda guardada en `replays/` y se puede volver a reproducir.
+Tocá **▶ Abrir la bandeja** y empiezan a entrar los mensajes de ejemplo. Cada sesión queda guardada en `replays/` y se puede volver a reproducir.
+
+### Con tus propios mensajes
+
+- **Tipearlos:** abajo del tablero hay un campo para escribir un mensaje (y quién lo manda). Apretá Enter y Kev lo clasifica como a cualquier otro.
+- **Importar un chat de WhatsApp:** en el celular, abrí el chat → menú → *Más* → *Exportar chat* → *Sin archivos*, y pasá el `.txt` (o el `.zip`) a la compu. En la app tocá **📎 Importar chat de WhatsApp** y los mensajes entran uno por uno (`soporte/whatsapp.py`, formatos de Android y de iPhone).
+  - Los nombres se reemplazan por "Contacto 1", "Contacto 2"…; se saltean los mensajes del sistema y los multimedia.
+  - Todo se procesa en tu máquina: el chat no sale a internet. Las sesiones quedan en `replays/`, que no se sube al repo. Ojo con publicar videos de chats reales.
+  - Estos mensajes no tienen respuesta correcta, así que no suman al marcador de aciertos.
+
+Conectarlo a WhatsApp en vivo requiere la API oficial de WhatsApp Business (cuenta de empresa verificada, número dedicado y un webhook con URL pública). Las librerías no oficiales que se conectan como si fueran WhatsApp Web violan los términos de WhatsApp y pueden hacer que te bloqueen el número.
 
 Otros comandos:
 
@@ -101,10 +111,12 @@ uv run --extra record python scripts/record.py --speed 1   # graba la última se
 data/mensajes.jsonl   60 mensajes inventados con su respuesta correcta
 soporte/kev.py        cliente de Kev: arma las 4 preguntas y lee las probabilidades
 soporte/server.py     FastAPI + WebSocket: hace entrar los mensajes, consulta a Kev y guarda la sesión
+soporte/whatsapp.py   lee un chat exportado de WhatsApp (.txt/.zip) y anonimiza los nombres
 web/                  la pantalla (decisión a la izquierda, tablero a la derecha)
 scripts/start.sh      levanta Kev y la bandeja
 scripts/evaluar.py    mide aciertos
 scripts/record.py     graba una sesión como video
+tests/                tests del lector de WhatsApp (uv run --with pytest pytest -q)
 ```
 
 ## Créditos
